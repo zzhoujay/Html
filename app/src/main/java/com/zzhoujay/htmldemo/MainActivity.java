@@ -2,6 +2,8 @@ package com.zzhoujay.htmldemo;
 
 import android.os.Bundle;
 import android.support.v7.app.AppCompatActivity;
+import android.text.Spanned;
+import android.widget.TextView;
 
 import com.zzhoujay.html.Html;
 
@@ -88,6 +90,13 @@ public class MainActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
-        Html.fromHtml(html);
+        Spanned spanned = Html.fromHtml(html);
+
+
+        TextView textView = findViewById(R.id.text);
+
+        textView.setText(spanned);
+
+//        Html.fromHtml(html);
     }
 }
