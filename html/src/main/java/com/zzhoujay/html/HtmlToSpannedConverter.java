@@ -12,11 +12,9 @@ import android.text.Spanned;
 import android.text.TextUtils;
 import android.text.style.AlignmentSpan;
 import android.text.style.BackgroundColorSpan;
-import android.text.style.BulletSpan;
 import android.text.style.ForegroundColorSpan;
 import android.text.style.ImageSpan;
 import android.text.style.ParagraphStyle;
-import android.text.style.QuoteSpan;
 import android.text.style.RelativeSizeSpan;
 import android.text.style.StrikethroughSpan;
 import android.text.style.StyleSpan;
@@ -25,6 +23,10 @@ import android.text.style.SuperscriptSpan;
 import android.text.style.TypefaceSpan;
 import android.text.style.URLSpan;
 import android.text.style.UnderlineSpan;
+
+import com.zzhoujay.html.style.ZBulletSpan;
+import com.zzhoujay.html.style.ZCodeSpan;
+import com.zzhoujay.html.style.ZQuoteSpan;
 
 import org.ccil.cowan.tagsoup.Parser;
 import org.xml.sax.Attributes;
@@ -179,12 +181,12 @@ class HtmlToSpannedConverter implements ContentHandler {
     private static void endLi(Editable text) {
         endCssStyle(text);
         endBlockElement(text);
-        end(text, Bullet.class, new BulletSpan());
+        end(text, Bullet.class, new ZBulletSpan());
     }
 
     private static void endBlockquote(Editable text) {
         endBlockElement(text);
-        end(text, Blockquote.class, new QuoteSpan());
+        end(text, Blockquote.class, new ZQuoteSpan());
     }
 
     private static void endHeading(Editable text) {
@@ -398,6 +400,8 @@ class HtmlToSpannedConverter implements ContentHandler {
             startHeading(mSpannableStringBuilder, attributes, tag.charAt(1) - '1');
         } else if (tag.equalsIgnoreCase("img")) {
             startImg(mSpannableStringBuilder, attributes, mImageGetter);
+        } else if (tag.equalsIgnoreCase("code")) {
+            start(mSpannableStringBuilder, new Code());
         } else if (mTagHandler != null) {
             mTagHandler.handleTag(true, tag, mSpannableStringBuilder, mReader);
         }
@@ -457,6 +461,8 @@ class HtmlToSpannedConverter implements ContentHandler {
                 Character.toLowerCase(tag.charAt(0)) == 'h' &&
                 tag.charAt(1) >= '1' && tag.charAt(1) <= '6') {
             endHeading(mSpannableStringBuilder);
+        } else if (tag.equalsIgnoreCase("code")) {
+            end(mSpannableStringBuilder, Code.class, new ZCodeSpan());
         } else if (mTagHandler != null) {
             mTagHandler.handleTag(false, tag, mSpannableStringBuilder, mReader);
         }
@@ -673,6 +679,9 @@ class HtmlToSpannedConverter implements ContentHandler {
     }
 
     private static class Bullet {
+    }
+
+    private static class Code {
     }
 
     private static class Font {
