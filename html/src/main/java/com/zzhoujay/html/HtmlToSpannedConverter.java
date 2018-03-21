@@ -50,6 +50,8 @@ import java.util.regex.Pattern;
 
 class HtmlToSpannedConverter implements ContentHandler {
 
+    private static final String TAG = "HtmlToSpannedConverter";
+
     private static final float[] HEADING_SIZES = {
             1.5f, 1.4f, 1.3f, 1.2f, 1.1f, 1f,
     };
@@ -61,6 +63,9 @@ class HtmlToSpannedConverter implements ContentHandler {
     private static Pattern sForegroundColorPattern;
     private static Pattern sBackgroundColorPattern;
     private static Pattern sTextDecorationPattern;
+    private static Pattern sRgbColorPattern;
+    private static Pattern sArgbColorPattern;
+    private static Pattern sHexColorPattern;
 
     static {
         sColorMap = new HashMap<>();
@@ -88,6 +93,27 @@ class HtmlToSpannedConverter implements ContentHandler {
         mTagHandler = tagHandler;
         mReader = parser;
         mFlags = flags;
+    }
+
+    private static Pattern getArgbColorPattern() {
+        if (sArgbColorPattern == null) {
+            sArgbColorPattern = Pattern.compile("\\s*rgba\\(\\s*(\\d{1,3})\\s*,\\s*(\\d{1,3})\\s*,\\s*(\\d{1,3})\\s*,\\s*([\\d.]+)\\b");
+        }
+        return sArgbColorPattern;
+    }
+
+    private static Pattern getHexColorPattern() {
+        if (sHexColorPattern == null) {
+            sHexColorPattern = Pattern.compile("\\s*(#[A-Za-z0-9]{6,8})");
+        }
+        return sHexColorPattern;
+    }
+
+    private static Pattern getRgbColorPattern() {
+        if (sRgbColorPattern == null) {
+            sRgbColorPattern = Pattern.compile("\\s*rgb\\(\\s*(\\d{1,3})\\s*,\\s*(\\d{1,3})\\s*,\\s*(\\d{1,3})\\b");
+        }
+        return sRgbColorPattern;
     }
 
     private static Pattern getTextAlignPattern() {
@@ -469,27 +495,27 @@ class HtmlToSpannedConverter implements ContentHandler {
     }
 
     private int getMarginParagraph() {
-        return getMargin(android.text.Html.FROM_HTML_SEPARATOR_LINE_BREAK_PARAGRAPH);
+        return getMargin(Html.FROM_HTML_SEPARATOR_LINE_BREAK_PARAGRAPH);
     }
 
     private int getMarginHeading() {
-        return getMargin(android.text.Html.FROM_HTML_SEPARATOR_LINE_BREAK_HEADING);
+        return getMargin(Html.FROM_HTML_SEPARATOR_LINE_BREAK_HEADING);
     }
 
     private int getMarginListItem() {
-        return getMargin(android.text.Html.FROM_HTML_SEPARATOR_LINE_BREAK_LIST_ITEM);
+        return getMargin(Html.FROM_HTML_SEPARATOR_LINE_BREAK_LIST_ITEM);
     }
 
     private int getMarginList() {
-        return getMargin(android.text.Html.FROM_HTML_SEPARATOR_LINE_BREAK_LIST);
+        return getMargin(Html.FROM_HTML_SEPARATOR_LINE_BREAK_LIST);
     }
 
     private int getMarginDiv() {
-        return getMargin(android.text.Html.FROM_HTML_SEPARATOR_LINE_BREAK_DIV);
+        return getMargin(Html.FROM_HTML_SEPARATOR_LINE_BREAK_DIV);
     }
 
     private int getMarginBlockquote() {
-        return getMargin(android.text.Html.FROM_HTML_SEPARATOR_LINE_BREAK_BLOCKQUOTE);
+        return getMargin(Html.FROM_HTML_SEPARATOR_LINE_BREAK_BLOCKQUOTE);
     }
 
     /**
@@ -574,7 +600,44 @@ class HtmlToSpannedConverter implements ContentHandler {
                 return i;
             }
         }
-        return Kit.getHtmlColor(color);
+        int htmlColor = Kit.getHtmlColor(color);
+        if (htmlColor != -1) {
+            return htmlColor;
+        }
+        // 16进制颜色值
+        try {
+            Matcher rgbMatcher = getRgbColorPattern().matcher(color);
+            if (rgbMatcher.find()) {
+                int r = Integer.valueOf(rgbMatcher.group(1));
+                int g = Integer.valueOf(rgbMatcher.group(2));
+                int b = Integer.valueOf(rgbMatcher.group(3));
+                return Color.rgb(r, g, b);
+            }
+        } catch (Exception ignore) {
+        }
+        // rgb颜色值
+        try {
+            Matcher hexMatcher = getHexColorPattern().matcher(color);
+            if (hexMatcher.find()) {
+                String hexColor = hexMatcher.group(1);
+                return Color.parseColor(hexColor);
+            }
+        } catch (Exception ignore) {
+        }
+        // argb颜色值
+        try {
+            Matcher argbMatcher = getArgbColorPattern().matcher(color);
+            if (argbMatcher.find()) {
+                int r = Integer.valueOf(argbMatcher.group(1));
+                int g = Integer.valueOf(argbMatcher.group(2));
+                int b = Integer.valueOf(argbMatcher.group(3));
+                float a = Float.valueOf(argbMatcher.group(4));
+                return Color.argb((int) (a * 255), r, g, b);
+            }
+        } catch (Exception ignore) {
+        }
+
+        return Color.BLACK;
     }
 
     public void setDocumentLocator(Locator locator) {

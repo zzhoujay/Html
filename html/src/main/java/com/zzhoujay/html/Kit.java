@@ -69,7 +69,7 @@ public class Kit {
         }
         Integer integer = sColorNameMap.get(color);
         if (integer == null) {
-            return Color.BLACK;
+            return -1;
         }
         return integer;
     }
