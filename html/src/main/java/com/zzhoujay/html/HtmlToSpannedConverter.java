@@ -26,6 +26,7 @@ import android.text.style.UnderlineSpan;
 
 import com.zzhoujay.html.style.ZBulletSpan;
 import com.zzhoujay.html.style.ZCodeSpan;
+import com.zzhoujay.html.style.ZIndentSpan;
 import com.zzhoujay.html.style.ZQuoteSpan;
 
 import org.ccil.cowan.tagsoup.Parser;
@@ -66,6 +67,7 @@ class HtmlToSpannedConverter implements ContentHandler {
     private static Pattern sRgbColorPattern;
     private static Pattern sArgbColorPattern;
     private static Pattern sHexColorPattern;
+    private static Pattern sTextIndentPattern;
 
     static {
         sColorMap = new HashMap<>();
@@ -147,6 +149,15 @@ class HtmlToSpannedConverter implements ContentHandler {
         return sTextDecorationPattern;
     }
 
+    private static Pattern getTextIndentPattern() {
+        if (sTextIndentPattern == null) {
+            sTextIndentPattern = Pattern.compile(
+                    "(?:\\s+|\\A)text-indent\\s*:\\s*(\\d*)px\\b"
+            );
+        }
+        return sTextIndentPattern;
+    }
+
     private static void appendNewlines(Editable text, int minNewline) {
         final int len = text.length();
 
@@ -184,6 +195,16 @@ class HtmlToSpannedConverter implements ContentHandler {
                     start(text, new Alignment(Layout.Alignment.ALIGN_OPPOSITE));
                 }
             }
+
+            m = getTextIndentPattern().matcher(style);
+            if (m.find()) {
+                String textIndent = m.group(1);
+                try {
+                    int tab = Integer.valueOf(textIndent);
+                    start(text, new Indent(tab));
+                } catch (NumberFormatException ignore) {
+                }
+            }
         }
     }
 
@@ -192,6 +213,11 @@ class HtmlToSpannedConverter implements ContentHandler {
         if (n != null) {
             appendNewlines(text, n.mNumNewlines);
             text.removeSpan(n);
+        }
+
+        Indent indent = getLast(text, Indent.class);
+        if (indent != null) {
+            setSpanFromMark(text, indent, new ZIndentSpan(indent.mIndentSize));
         }
 
         Alignment a = getLast(text, Alignment.class);
@@ -378,10 +404,12 @@ class HtmlToSpannedConverter implements ContentHandler {
             startCssStyle(mSpannableStringBuilder, attributes);
         } else if (tag.equalsIgnoreCase("ul")) {
             startBlockElement(mSpannableStringBuilder, attributes, getMarginList());
+            startCssStyle(mSpannableStringBuilder, attributes);
         } else if (tag.equalsIgnoreCase("li")) {
             startLi(mSpannableStringBuilder, attributes);
         } else if (tag.equalsIgnoreCase("div")) {
             startBlockElement(mSpannableStringBuilder, attributes, getMarginDiv());
+            startCssStyle(mSpannableStringBuilder, attributes);
         } else if (tag.equalsIgnoreCase("span")) {
             startCssStyle(mSpannableStringBuilder, attributes);
         } else if (tag.equalsIgnoreCase("strong")) {
@@ -440,10 +468,12 @@ class HtmlToSpannedConverter implements ContentHandler {
             endCssStyle(mSpannableStringBuilder);
             endBlockElement(mSpannableStringBuilder);
         } else if (tag.equalsIgnoreCase("ul")) {
+            endCssStyle(mSpannableStringBuilder);
             endBlockElement(mSpannableStringBuilder);
         } else if (tag.equalsIgnoreCase("li")) {
             endLi(mSpannableStringBuilder);
         } else if (tag.equalsIgnoreCase("div")) {
+            endCssStyle(mSpannableStringBuilder);
             endBlockElement(mSpannableStringBuilder);
         } else if (tag.equalsIgnoreCase("span")) {
             endCssStyle(mSpannableStringBuilder);
@@ -800,6 +830,14 @@ class HtmlToSpannedConverter implements ContentHandler {
 
         public Alignment(Layout.Alignment alignment) {
             mAlignment = alignment;
+        }
+    }
+
+    private static class Indent {
+        private final int mIndentSize;
+
+        private Indent(int mIndentSize) {
+            this.mIndentSize = mIndentSize;
         }
     }
 
