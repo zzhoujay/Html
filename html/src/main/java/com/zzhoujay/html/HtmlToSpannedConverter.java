@@ -47,8 +47,10 @@ import java.util.regex.Pattern;
 
 /**
  * Created by zhou on 2018/3/11.
+ * HtmlToSpannedConverter
  */
 
+@SuppressWarnings("unused")
 class HtmlToSpannedConverter implements ContentHandler {
 
     private static final String TAG = "HtmlToSpannedConverter";
@@ -87,8 +89,8 @@ class HtmlToSpannedConverter implements ContentHandler {
     private android.text.Html.TagHandler mTagHandler;
     private int mFlags;
 
-    public HtmlToSpannedConverter(String source, android.text.Html.ImageGetter imageGetter,
-                                  android.text.Html.TagHandler tagHandler, Parser parser, int flags) {
+    HtmlToSpannedConverter(String source, android.text.Html.ImageGetter imageGetter,
+                           android.text.Html.TagHandler tagHandler, Parser parser, int flags) {
         mSource = source;
         mSpannableStringBuilder = new SpannableStringBuilder();
         mImageGetter = imageGetter;
@@ -358,7 +360,7 @@ class HtmlToSpannedConverter implements ContentHandler {
         }
     }
 
-    public Spanned convert() {
+    Spanned convert() {
 
         mReader.setContentHandler(this);
         try {
@@ -373,9 +375,9 @@ class HtmlToSpannedConverter implements ContentHandler {
 
         // Fix flags and range for paragraph-type markup.
         Object[] obj = mSpannableStringBuilder.getSpans(0, mSpannableStringBuilder.length(), ParagraphStyle.class);
-        for (int i = 0; i < obj.length; i++) {
-            int start = mSpannableStringBuilder.getSpanStart(obj[i]);
-            int end = mSpannableStringBuilder.getSpanEnd(obj[i]);
+        for (Object anObj : obj) {
+            int start = mSpannableStringBuilder.getSpanStart(anObj);
+            int end = mSpannableStringBuilder.getSpanEnd(anObj);
 
             // If the last line of the range is blank, back off by one.
             if (end - 2 >= 0) {
@@ -386,9 +388,9 @@ class HtmlToSpannedConverter implements ContentHandler {
             }
 
             if (end == start) {
-                mSpannableStringBuilder.removeSpan(obj[i]);
+                mSpannableStringBuilder.removeSpan(anObj);
             } else {
-                mSpannableStringBuilder.setSpan(obj[i], start, end, Spannable.SPAN_PARAGRAPH);
+                mSpannableStringBuilder.setSpan(anObj, start, end, Spannable.SPAN_PARAGRAPH);
             }
         }
 
@@ -396,6 +398,7 @@ class HtmlToSpannedConverter implements ContentHandler {
     }
 
     private void handleStartTag(String tag, Attributes attributes) {
+        //noinspection StatementWithEmptyBody
         if (tag.equalsIgnoreCase("br")) {
             // We don't need to handle this. TagSoup will ensure that there's a </br> for each <br>
             // so we can safely emit the linebreaks when we handle the close tag.
@@ -778,17 +781,17 @@ class HtmlToSpannedConverter implements ContentHandler {
     }
 
     private static class Font {
-        public String mFace;
+        String mFace;
 
-        public Font(String face) {
+        Font(String face) {
             mFace = face;
         }
     }
 
     private static class Href {
-        public String mHref;
+        String mHref;
 
-        public Href(String href) {
+        Href(String href) {
             mHref = href;
         }
     }
@@ -796,7 +799,7 @@ class HtmlToSpannedConverter implements ContentHandler {
     private static class Foreground {
         private int mForegroundColor;
 
-        public Foreground(int foregroundColor) {
+        Foreground(int foregroundColor) {
             mForegroundColor = foregroundColor;
         }
     }
@@ -804,7 +807,7 @@ class HtmlToSpannedConverter implements ContentHandler {
     private static class Background {
         private int mBackgroundColor;
 
-        public Background(int backgroundColor) {
+        Background(int backgroundColor) {
             mBackgroundColor = backgroundColor;
         }
     }
@@ -812,7 +815,7 @@ class HtmlToSpannedConverter implements ContentHandler {
     private static class Heading {
         private int mLevel;
 
-        public Heading(int level) {
+        Heading(int level) {
             mLevel = level;
         }
     }
@@ -820,7 +823,7 @@ class HtmlToSpannedConverter implements ContentHandler {
     private static class Newline {
         private int mNumNewlines;
 
-        public Newline(int numNewlines) {
+        Newline(int numNewlines) {
             mNumNewlines = numNewlines;
         }
     }
@@ -828,7 +831,7 @@ class HtmlToSpannedConverter implements ContentHandler {
     private static class Alignment {
         private Layout.Alignment mAlignment;
 
-        public Alignment(Layout.Alignment alignment) {
+        Alignment(Layout.Alignment alignment) {
             mAlignment = alignment;
         }
     }
