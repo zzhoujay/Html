@@ -1,15 +1,17 @@
 apply plugin: 'com.android.library'
+apply plugin: 'com.novoda.bintray-release'
+
+def version_code = 1
+def version_name = '1.0.0'
 
 android {
     compileSdkVersion 26
 
-
-
     defaultConfig {
         minSdkVersion 15
         targetSdkVersion 26
-        versionCode 1
-        versionName "1.0"
+        versionCode version_code
+        versionName version_name
 
         testInstrumentationRunner "android.support.test.runner.AndroidJUnitRunner"
 
@@ -24,15 +26,32 @@ android {
 
 }
 
+buildscript {
+    repositories {
+        jcenter()
+    }
+    dependencies {
+        classpath "com.novoda:bintray-release:0.8.1"
+    }
+}
+
 dependencies {
-    implementation fileTree(dir: 'libs', include: ['*.jar'])
-
-    implementation 'com.android.support:appcompat-v7:26.1.0'
-    testImplementation 'junit:junit:4.12'
-    androidTestImplementation 'com.android.support.test:runner:1.0.1'
-    androidTestImplementation 'com.android.support.test.espresso:espresso-core:3.0.1'
-
     // https://mvnrepository.com/artifact/org.ccil.cowan.tagsoup/tagsoup
-    compile group: 'org.ccil.cowan.tagsoup', name: 'tagsoup', version: '1.2.1'
+    implementation group: 'org.ccil.cowan.tagsoup', name: 'tagsoup', version: '1.2.1'
+}
 
+publish {
+
+    Properties properties = new Properties()
+    properties.load(project.rootProject.file('local.properties').newDataInputStream())
+
+    bintrayUser = properties.getProperty("bintray.user")
+    bintrayKey = properties.getProperty("bintray.key")
+
+    userOrg = 'zzhoujay'
+    groupId = 'com.zzhoujay'
+    artifactId = 'html'
+    publishVersion = version_name
+    desc = 'Html parser based on native Html parser'
+    website = 'https://github.com/zzhoujay/Html'
 }
