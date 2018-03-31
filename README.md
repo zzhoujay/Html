@@ -10,6 +10,11 @@
 * 增加对code标签和代码块的支持
 * 增加了对`text-indent`属性的支持
 
+### Gradle
+```
+compile 'com.zzhoujay:html:latest-version'
+```
+
 ### 后续会增加更多功能
 
 _by zzhoujay_
