@@ -25,6 +25,7 @@ import android.text.style.URLSpan;
 import android.text.style.UnderlineSpan;
 
 import com.zzhoujay.html.style.ZBulletSpan;
+import com.zzhoujay.html.style.ZCodeBlockSpan;
 import com.zzhoujay.html.style.ZCodeSpan;
 import com.zzhoujay.html.style.ZIndentSpan;
 import com.zzhoujay.html.style.ZQuoteSpan;
@@ -88,6 +89,8 @@ class HtmlToSpannedConverter implements ContentHandler {
     private android.text.Html.ImageGetter mImageGetter;
     private android.text.Html.TagHandler mTagHandler;
     private int mFlags;
+    private boolean mCodeStart;
+    private boolean mPreStart;
 
     HtmlToSpannedConverter(String source, android.text.Html.ImageGetter imageGetter,
                            android.text.Html.TagHandler tagHandler, Parser parser, int flags) {
@@ -293,6 +296,21 @@ class HtmlToSpannedConverter implements ContentHandler {
         }
     }
 
+    private static void endCodeBlock(Editable text) {
+        int len = text.length();
+        Code code = getLast(text, Code.class);
+        if (code != null) {
+            int spanStart = text.getSpanStart(code);
+            int spanEnd = text.length();
+            CharSequence codeContent = text.subSequence(spanStart, spanEnd);
+            text.removeSpan(code);
+            text.setSpan(new ZCodeBlockSpan(codeContent), spanStart, spanEnd, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
+            URLSpan urlSpan = new URLSpan("code://" + codeContent);
+            text.setSpan(urlSpan, spanStart, spanEnd, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
+            text.replace(spanStart, spanEnd, "${code}\n");
+        }
+    }
+
     private static void endCssStyle(Editable text) {
         Strikethrough s = getLast(text, Strikethrough.class);
         if (s != null) {
@@ -458,7 +476,13 @@ class HtmlToSpannedConverter implements ContentHandler {
         } else if (tag.equalsIgnoreCase("img")) {
             startImg(mSpannableStringBuilder, attributes, mImageGetter);
         } else if (tag.equalsIgnoreCase("code")) {
+            if (mPreStart) {
+                appendNewlines(mSpannableStringBuilder, 1);
+            }
             start(mSpannableStringBuilder, new Code());
+            mCodeStart = true;
+        } else if (tag.equalsIgnoreCase("pre")) {
+            mPreStart = true;
         } else if (mTagHandler != null) {
             mTagHandler.handleTag(true, tag, mSpannableStringBuilder, mReader);
         }
@@ -521,7 +545,14 @@ class HtmlToSpannedConverter implements ContentHandler {
                 tag.charAt(1) >= '1' && tag.charAt(1) <= '6') {
             endHeading(mSpannableStringBuilder);
         } else if (tag.equalsIgnoreCase("code")) {
-            end(mSpannableStringBuilder, Code.class, new ZCodeSpan());
+            if (mPreStart) {
+                endCodeBlock(mSpannableStringBuilder);
+            } else {
+                end(mSpannableStringBuilder, Code.class, new ZCodeSpan());
+            }
+            mCodeStart = false;
+        } else if (tag.equalsIgnoreCase("pre")) {
+            mPreStart = false;
         } else if (mTagHandler != null) {
             mTagHandler.handleTag(false, tag, mSpannableStringBuilder, mReader);
         }
@@ -698,6 +729,10 @@ class HtmlToSpannedConverter implements ContentHandler {
     }
 
     public void characters(char ch[], int start, int length) throws SAXException {
+        if (mCodeStart) {
+            mSpannableStringBuilder.append(new String(ch, start, length));
+            return;
+        }
         StringBuilder sb = new StringBuilder();
 
         /*
