@@ -104,28 +104,28 @@ class HtmlToSpannedConverter implements ContentHandler {
 
     private static Pattern getArgbColorPattern() {
         if (sArgbColorPattern == null) {
-            sArgbColorPattern = Pattern.compile("\\s*rgba\\(\\s*(\\d{1,3})\\s*,\\s*(\\d{1,3})\\s*,\\s*(\\d{1,3})\\s*,\\s*([\\d.]+)\\b");
+            sArgbColorPattern = Pattern.compile("^\\s*rgba\\(\\s*(\\d{1,3})\\s*,\\s*(\\d{1,3})\\s*,\\s*(\\d{1,3})\\s*,\\s*([\\d.]+)\\b");
         }
         return sArgbColorPattern;
     }
 
     private static Pattern getHexColorPattern() {
         if (sHexColorPattern == null) {
-            sHexColorPattern = Pattern.compile("\\s*(#[A-Za-z0-9]{6,8})");
+            sHexColorPattern = Pattern.compile("^\\s*(#[A-Za-z0-9]{6,8})");
         }
         return sHexColorPattern;
     }
 
     private static Pattern getRgbColorPattern() {
         if (sRgbColorPattern == null) {
-            sRgbColorPattern = Pattern.compile("\\s*rgb\\(\\s*(\\d{1,3})\\s*,\\s*(\\d{1,3})\\s*,\\s*(\\d{1,3})\\b");
+            sRgbColorPattern = Pattern.compile("^\\s*rgb\\(\\s*(\\d{1,3})\\s*,\\s*(\\d{1,3})\\s*,\\s*(\\d{1,3})\\b");
         }
         return sRgbColorPattern;
     }
 
     private static Pattern getTextAlignPattern() {
         if (sTextAlignPattern == null) {
-            sTextAlignPattern = Pattern.compile("(?:\\s+|\\A)text-align\\s*:\\s*(\\S*)\\b");
+            sTextAlignPattern = Pattern.compile("(?:\\s+|\\A|;\\s*)text-align\\s*:\\s*(\\S*)\\b");
         }
         return sTextAlignPattern;
     }
@@ -133,7 +133,7 @@ class HtmlToSpannedConverter implements ContentHandler {
     private static Pattern getForegroundColorPattern() {
         if (sForegroundColorPattern == null) {
             sForegroundColorPattern = Pattern.compile(
-                    "(?:\\s+|\\A)color\\s*:\\s*(\\S*)\\b");
+                    "(?:\\s+|\\A|;\\s*)color\\s*:\\s*(.*)\\b");
         }
         return sForegroundColorPattern;
     }
@@ -141,7 +141,7 @@ class HtmlToSpannedConverter implements ContentHandler {
     private static Pattern getBackgroundColorPattern() {
         if (sBackgroundColorPattern == null) {
             sBackgroundColorPattern = Pattern.compile(
-                    "(?:\\s+|\\A)background(?:-color)?\\s*:\\s*(\\S*)\\b");
+                    "(?:\\s+|\\A|;\\s*)background(?:-color)?\\s*:\\s*(.*)\\b");
         }
         return sBackgroundColorPattern;
     }
@@ -149,7 +149,7 @@ class HtmlToSpannedConverter implements ContentHandler {
     private static Pattern getTextDecorationPattern() {
         if (sTextDecorationPattern == null) {
             sTextDecorationPattern = Pattern.compile(
-                    "(?:\\s+|\\A)text-decoration\\s*:\\s*(\\S*)\\b");
+                    "(?:\\s+|\\A|;\\s*)text-decoration\\s*:\\s*(\\S*)\\b");
         }
         return sTextDecorationPattern;
     }
@@ -157,7 +157,7 @@ class HtmlToSpannedConverter implements ContentHandler {
     private static Pattern getTextIndentPattern() {
         if (sTextIndentPattern == null) {
             sTextIndentPattern = Pattern.compile(
-                    "(?:\\s+|\\A)text-indent\\s*:\\s*(\\d*)px\\b"
+                    "(?:\\s+|\\A|;\\s*)text-indent\\s*:\\s*(\\d*)px\\b"
             );
         }
         return sTextIndentPattern;
@@ -312,6 +312,10 @@ class HtmlToSpannedConverter implements ContentHandler {
     }
 
     private static void endCssStyle(Editable text) {
+        Underline u = getLast(text, Underline.class);
+        if (u != null) {
+            setSpanFromMark(text, u, new UnderlineSpan());
+        }
         Strikethrough s = getLast(text, Strikethrough.class);
         if (s != null) {
             setSpanFromMark(text, s, new StrikethroughSpan());
@@ -618,7 +622,7 @@ class HtmlToSpannedConverter implements ContentHandler {
             if (m.find()) {
                 int c = getHtmlColor(m.group(1));
                 if (c != -1) {
-                    start(text, new Foreground(c | 0xFF000000));
+                    start(text, new Foreground(c));
                 }
             }
 
@@ -626,15 +630,21 @@ class HtmlToSpannedConverter implements ContentHandler {
             if (m.find()) {
                 int c = getHtmlColor(m.group(1));
                 if (c != -1) {
-                    start(text, new Background(c | 0xFF000000));
+                    start(text, new Background(c));
                 }
             }
 
             m = getTextDecorationPattern().matcher(style);
             if (m.find()) {
                 String textDecoration = m.group(1);
+                int i = textDecoration.indexOf(';');
+                if (i > 0) {
+                    textDecoration = textDecoration.substring(0, i).trim();
+                }
                 if (textDecoration.equalsIgnoreCase("line-through")) {
                     start(text, new Strikethrough());
+                } else if (textDecoration.equalsIgnoreCase("underline")) {
+                    start(text, new Underline());
                 }
             }
         }
@@ -657,18 +667,16 @@ class HtmlToSpannedConverter implements ContentHandler {
     }
 
     private int getHtmlColor(String color) {
-        if ((mFlags & android.text.Html.FROM_HTML_OPTION_USE_CSS_COLORS)
-                == android.text.Html.FROM_HTML_OPTION_USE_CSS_COLORS) {
-            Integer i = sColorMap.get(color.toLowerCase(Locale.US));
-            if (i != null) {
-                return i;
-            }
-        }
-        int htmlColor = Kit.getHtmlColor(color);
-        if (htmlColor != -1) {
-            return htmlColor;
-        }
         // 16进制颜色值
+        try {
+            Matcher hexMatcher = getHexColorPattern().matcher(color);
+            if (hexMatcher.find()) {
+                String hexColor = hexMatcher.group(1);
+                return Color.parseColor(hexColor);
+            }
+        } catch (Exception ignore) {
+        }
+        // rgb进制颜色值
         try {
             Matcher rgbMatcher = getRgbColorPattern().matcher(color);
             if (rgbMatcher.find()) {
@@ -676,15 +684,6 @@ class HtmlToSpannedConverter implements ContentHandler {
                 int g = Integer.valueOf(rgbMatcher.group(2));
                 int b = Integer.valueOf(rgbMatcher.group(3));
                 return Color.rgb(r, g, b);
-            }
-        } catch (Exception ignore) {
-        }
-        // rgb颜色值
-        try {
-            Matcher hexMatcher = getHexColorPattern().matcher(color);
-            if (hexMatcher.find()) {
-                String hexColor = hexMatcher.group(1);
-                return Color.parseColor(hexColor);
             }
         } catch (Exception ignore) {
         }
@@ -701,34 +700,44 @@ class HtmlToSpannedConverter implements ContentHandler {
         } catch (Exception ignore) {
         }
 
+        if ((mFlags & android.text.Html.FROM_HTML_OPTION_USE_CSS_COLORS)
+                == android.text.Html.FROM_HTML_OPTION_USE_CSS_COLORS) {
+            Integer i = sColorMap.get(color.toLowerCase(Locale.US));
+            if (i != null) {
+                return i;
+            }
+        }
+        int htmlColor = Kit.getHtmlColor(color);
+        if (htmlColor != -1) {
+            return htmlColor;
+        }
         return Color.BLACK;
     }
 
     public void setDocumentLocator(Locator locator) {
     }
 
-    public void startDocument() throws SAXException {
+    public void startDocument() {
     }
 
-    public void endDocument() throws SAXException {
+    public void endDocument() {
     }
 
-    public void startPrefixMapping(String prefix, String uri) throws SAXException {
+    public void startPrefixMapping(String prefix, String uri) {
     }
 
-    public void endPrefixMapping(String prefix) throws SAXException {
+    public void endPrefixMapping(String prefix) {
     }
 
-    public void startElement(String uri, String localName, String qName, Attributes attributes)
-            throws SAXException {
+    public void startElement(String uri, String localName, String qName, Attributes attributes) {
         handleStartTag(localName, attributes);
     }
 
-    public void endElement(String uri, String localName, String qName) throws SAXException {
+    public void endElement(String uri, String localName, String qName) {
         handleEndTag(localName);
     }
 
-    public void characters(char ch[], int start, int length) throws SAXException {
+    public void characters(char ch[], int start, int length) {
         if (mCodeStart) {
             mSpannableStringBuilder.append(new String(ch, start, length));
             return;
@@ -770,13 +779,13 @@ class HtmlToSpannedConverter implements ContentHandler {
         mSpannableStringBuilder.append(sb);
     }
 
-    public void ignorableWhitespace(char ch[], int start, int length) throws SAXException {
+    public void ignorableWhitespace(char ch[], int start, int length) {
     }
 
-    public void processingInstruction(String target, String data) throws SAXException {
+    public void processingInstruction(String target, String data) {
     }
 
-    public void skippedEntity(String name) throws SAXException {
+    public void skippedEntity(String name) {
     }
 
     private static class Bold {

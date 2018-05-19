@@ -16,6 +16,14 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+        <activity android:name=".CodeViewActivity">
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <data
+                    android:mimeType="*/*"
+                    android:scheme="code" />
+            </intent-filter>
+        </activity>
     </application>
 
 </manifest>
